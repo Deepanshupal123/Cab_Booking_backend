@@ -220,10 +220,16 @@ const cancelBooking = async (user, bookingId, reason, io) => {
 };
 
 const listBookings = async (user, { status, page = 1, limit = 20 }) => {
-  const filter = {};
+  let filter = {};
   if (user.role === ROLES.CUSTOMER) filter.customer = user._id;
-  if (user.role === ROLES.DRIVER) filter.driver = user._id;
-  if (status) filter.status = status;
+  if (user.role === ROLES.DRIVER) {
+    filter = {
+      $or: [{ driver: user._id }, { status: BOOKING_STATUS.PENDING, driver: null }],
+    };
+  }
+  if (status) {
+    filter = { $and: [filter, { status }] };
+  }
 
   const pageNum = Math.max(1, Number(page));
   const limitNum = Math.min(50, Math.max(1, Number(limit)));

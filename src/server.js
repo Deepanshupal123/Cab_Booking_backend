@@ -2,6 +2,7 @@ const http = require("http");
 const { Server } = require("socket.io");
 const createApp = require("./app");
 const env = require("./config/env");
+const { corsOrigins } = require("./config/cors");
 const { connectDB } = require("./config/db");
 const initSocket = require("./socket");
 const logger = require("./utils/logger");
@@ -13,7 +14,7 @@ const start = async () => {
   const server = http.createServer(app);
 
   const io = new Server(server, {
-    cors: { origin: env.clientUrl === "*" ? true : env.clientUrl, methods: ["GET", "POST", "PATCH"] },
+    cors: { origin: corsOrigins(), methods: ["GET", "POST", "PATCH"] },
   });
   initSocket(io);
   app.set("io", io);
