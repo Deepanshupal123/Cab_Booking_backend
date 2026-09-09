@@ -4,23 +4,37 @@ import { useAuth } from "../auth";
 import { connectSocket } from "../socket";
 import { PLACES, statusLabel } from "../places";
 import Shell from "../components/Shell";
+import LocationSearch from "../components/LocationSearch";
+import MapEmbed from "../components/MapEmbed";
+
+const LIVE = ["accepted", "arrived", "ongoing"];
 
 export default function DriverPage() {
   const { user } = useAuth();
-  const [online, setOnline] = useState(false);
-  const [place, setPlace] = useState(PLACES[0].name);
+  const [online, setOnline] = useState(Boolean(user?.isAvailable));
+  const [zone, setZone] = useState(PLACES[0]);
   const [bookings, setBookings] = useState([]);
   const [active, setActive] = useState(null);
   const [otp, setOtp] = useState("");
-  const [nearby, setNearby] = useState([]);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
 
-  const coords = PLACES.find((p) => p.name === place).coordinates;
+  const coords = zone.coordinates;
 
   const load = async () => {
     const res = await api("/api/bookings?limit=30");
-    setBookings(res.data || []);
+    const items = res.data || [];
+    setBookings(items);
+    const current = items.find((b) => LIVE.includes(b.status));
+    setActive((prev) => {
+      if (current) return current;
+      if (prev && LIVE.includes(prev.status)) {
+        return items.find((b) => b._id === prev._id) || null;
+      }
+      return prev;
+    });
+    if (current) setOnline(true);
+    return items;
   };
 
   const openBooking = async (id) => {
@@ -39,8 +53,9 @@ export default function DriverPage() {
     load().catch((e) => setErr(e.message));
     const socket = connectSocket(user.token);
     socket.on("newBookingRequest", (payload) => {
-      setMsg(`New request nearby · ₹${payload.fare}`);
+      setMsg(`New ride request · ₹${payload.fare} · ${payload.distanceKm} km`);
       load().catch(() => {});
+      if (payload.bookingId) openBooking(payload.bookingId).catch(() => {});
     });
     socket.on("bookingCancelled", () => load().catch(() => {}));
     return () => socket.disconnect();
@@ -51,7 +66,7 @@ export default function DriverPage() {
     pushLocation().catch((e) => setErr(e.message));
     const t = setInterval(() => pushLocation().catch(() => {}), 8000);
     return () => clearInterval(t);
-  }, [online, place]);
+  }, [online, zone]);
 
   const toggleOnline = async () => {
     setErr("");
@@ -62,105 +77,121 @@ export default function DriverPage() {
         body: JSON.stringify({ isAvailable: !online }),
       });
       setOnline(res.data.isAvailable);
-      setMsg(res.data.isAvailable ? "You are online" : "You are offline");
+      setMsg(res.data.isAvailable ? "You are online for rides" : "You are offline");
     } catch (e) {
       setErr(e.message);
+      await load().catch(() => {});
     }
   };
 
-  const findNearby = async () => {
+  const actOn = async (id, path, body) => {
+    setErr("");
     try {
-      const res = await api(
-        `/api/drivers/nearby?lng=${coords[0]}&lat=${coords[1]}&vehicleType=car&radiusKm=8`
-      );
-      setNearby(res.data || []);
+      const res = await api(`/api/bookings/${id}/${path}`, {
+        method: "PATCH",
+        body: body ? JSON.stringify(body) : "{}",
+      });
+      setActive(res.data);
+      setMsg(res.message || "Updated");
+      setOtp("");
+      await load();
     } catch (e) {
       setErr(e.message);
+      const items = await load().catch(() => []);
+      const current = items.find((b) => LIVE.includes(b.status));
+      if (current) setActive(current);
     }
   };
 
   const act = async (path, body) => {
-    setErr("");
-    try {
-      const res = await api(`/api/bookings/${active._id}/${path}`, {
-        method: path === "rate" ? "POST" : "PATCH",
-        body: body ? JSON.stringify(body) : undefined,
-      });
-      setActive(res.data);
-      setMsg(res.message || "Updated");
-      await load();
-    } catch (e) {
-      setErr(e.message);
-    }
+    if (!active?._id) return;
+    await actOn(active._id, path, body);
   };
 
+  const pending = bookings.filter((b) => b.status === "pending");
+  const mine = bookings.filter((b) => b.status !== "pending");
+
   return (
-    <Shell title="Driver console" subtitle="Go online, accept trips, complete with OTP">
+    <Shell theme="driver" title="Driver dashboard" subtitle="Go online, take jobs, collect OTP, finish trip">
+      <section className={`status-banner ${online ? "on" : ""}`}>
+        <div>
+          <strong>{online ? "Online" : "Offline"}</strong>
+          <p>
+            {LIVE.includes(active?.status)
+              ? "Current trip is open below. Finish or cancel it before taking a new request."
+              : "Set your area same as customer pickup, then go online and Accept ride."}
+          </p>
+        </div>
+        <button type="button" className={online ? "ghost" : "primary"} onClick={toggleOnline}>
+          {online ? "Go offline" : "Go online"}
+        </button>
+      </section>
+
       <div className="grid">
         <section className="card">
-          <h2>Availability</h2>
-          <label>
-            Current area (GPS for matching)
-            <select value={place} onChange={(e) => setPlace(e.target.value)}>
-              {PLACES.map((p) => (
-                <option key={p.name}>{p.name}</option>
-              ))}
-            </select>
-          </label>
-          <div className="row">
-            <button type="button" className={online ? "primary" : "ghost"} onClick={toggleOnline}>
-              {online ? "Go offline" : "Go online"}
-            </button>
-            <button type="button" className="ghost" onClick={findNearby}>
-              Nearby drivers
-            </button>
-          </div>
-          <p className="muted">Stay online near the customer pickup so matching works (5 km radius).</p>
-          {!!nearby.length && (
-            <ul>
-              {nearby.map((d) => (
-                <li key={d._id}>
-                  {d.name} · {d.vehicleType} · {d.vehicleNumber}
-                </li>
-              ))}
-            </ul>
-          )}
+          <h2>Your zone</h2>
+          <LocationSearch label="Search your live area" value={zone} onSelect={setZone} placeholder="Type any location…" />
+          <MapEmbed point={zone.coordinates} title="Your current zone on Google Maps" />
+          <p className="muted">Matching uses this GPS point (5 km). Stay near the customer pickup.</p>
         </section>
 
-        <section className="card">
-          <h2>Selected trip</h2>
-          {!active && <p className="muted">Pick a pending or assigned booking.</p>}
+        <section className="card highlight">
+          <h2>Active job</h2>
+          {!active && <p className="muted">Go online, then Accept a request from Incoming.</p>}
           {active && (
             <>
               <p>
                 <span className={`badge ${active.status}`}>{statusLabel(active.status)}</span>
               </p>
-              <p>
+              <p className="route">
                 {active.pickupLocation?.address} → {active.dropLocation?.address}
               </p>
-              <p>₹{active.fare?.estimated}</p>
+              <p className="fare-line">Fare ₹{active.fare?.estimated}</p>
+              {active.pickupLocation?.coordinates && active.dropLocation?.coordinates && (
+                <MapEmbed
+                  pickup={active.pickupLocation.coordinates}
+                  drop={active.dropLocation.coordinates}
+                  title="Navigate pickup → drop"
+                />
+              )}
+              {active.payment?.status === "paid" && (
+                <p className="ok">Customer paid · {active.payment.method} · {active.payment.transactionId}</p>
+              )}
+              {active.payment?.status === "cod" && (
+                <p className="ok">Customer chose cash on delivery</p>
+              )}
               <div className="row wrap">
                 {active.status === "pending" && (
                   <button type="button" className="primary" onClick={() => act("accept")}>
-                    Accept
+                    Accept ride
                   </button>
                 )}
-                {active.status === "accepted" && (
-                  <button type="button" className="primary" onClick={() => act("arrived")}>
-                    Arrived
-                  </button>
-                )}
-                {active.status === "arrived" && (
+                {["accepted", "arrived"].includes(active.status) && (
                   <>
-                    <input value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="Customer OTP" maxLength={4} />
+                    <p className="muted">Customer ke phone pe SMS nahi jaati. Unki RideNow screen ka 4-digit OTP maango, phir Start ride dabao.</p>
+                    <input value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="Enter customer OTP" maxLength={4} />
                     <button type="button" className="primary" onClick={() => act("start", { otp })}>
-                      Start trip
+                      Start ride
                     </button>
+                    {active.status === "accepted" && (
+                      <button type="button" className="ghost" onClick={() => act("arrived")}>
+                        Arrived at pickup
+                      </button>
+                    )}
                   </>
                 )}
                 {active.status === "ongoing" && (
                   <button type="button" className="primary" onClick={() => act("complete")}>
-                    Complete
+                    Complete trip
+                  </button>
+                )}
+                {active.status === "completed" && active.payment?.status === "cod" && (
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={() => act("collect-cash")}
+                  >
+                    Cash collected
                   </button>
                 )}
                 {["pending", "accepted", "arrived", "ongoing"].includes(active.status) && (
@@ -176,8 +207,31 @@ export default function DriverPage() {
       {err && <p className="error">{err}</p>}
       {msg && <p className="ok">{msg}</p>}
       <section className="card">
-        <h2>Jobs</h2>
-        {bookings.map((b) => (
+        <h2>Incoming requests</h2>
+        {pending.map((b) => (
+          <div key={b._id} className="job-card">
+            <div>
+              <span className="badge pending">pending</span>
+              <p className="route">
+                {b.pickupLocation?.address} → {b.dropLocation?.address}
+              </p>
+              <p>₹{b.fare?.estimated} · {b.vehicleType} · {b.distanceKm} km</p>
+            </div>
+            <button
+              type="button"
+              className="primary"
+              disabled={LIVE.includes(active?.status) && active?._id !== b._id}
+              onClick={() => actOn(b._id, "accept")}
+            >
+              Accept ride
+            </button>
+          </div>
+        ))}
+        {!pending.length && <p className="muted">No open requests. Stay online near pickup.</p>}
+      </section>
+      <section className="card">
+        <h2>My trips</h2>
+        {mine.map((b) => (
           <button key={b._id} className="row-btn" type="button" onClick={() => openBooking(b._id)}>
             <span className={`badge ${b.status}`}>{b.status}</span>
             <span>

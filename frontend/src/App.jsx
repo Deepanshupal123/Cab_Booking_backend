@@ -25,6 +25,10 @@ export default function App() {
       <Route path="/login" element={user ? <Navigate to={home} replace /> : <AuthPage mode="login" />} />
       <Route path="/register" element={user ? <Navigate to={home} replace /> : <AuthPage mode="register" />} />
       <Route
+        path="/register-driver"
+        element={user ? <Navigate to={home} replace /> : <AuthPage mode="register-driver" />}
+      />
+      <Route
         path="/app"
         element={
           <Guard roles={["customer"]}>

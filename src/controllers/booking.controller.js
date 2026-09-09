@@ -7,7 +7,7 @@ const estimate = asyncHandler(async (req, res) => {
 });
 
 const create = asyncHandler(async (req, res) => {
-  const { booking, matched } = await bookingService.createBooking(
+  const { booking, matched, otpSentTo } = await bookingService.createBooking(
     req.user,
     req.body,
     req.app.get("io")
@@ -15,7 +15,9 @@ const create = asyncHandler(async (req, res) => {
   created(
     res,
     booking,
-    matched ? "Booking created, nearby driver notified" : "Booking created, no driver available nearby yet"
+    matched
+      ? `Booking created. Your OTP is on this customer screen (not SMS). Nearby drivers notified.`
+      : `Booking created. Your OTP is on this customer screen (not SMS). No driver nearby yet.`
   );
 });
 
@@ -69,6 +71,17 @@ const rate = asyncHandler(async (req, res) => {
   ok(res, booking, "Rating submitted");
 });
 
+const pay = asyncHandler(async (req, res) => {
+  const booking = await bookingService.payBooking(req.user, req.params.id, req.body);
+  const message = booking.payment?.status === "cod" ? "Cash on delivery selected" : "Payment successful";
+  ok(res, booking, message);
+});
+
+const collectCash = asyncHandler(async (req, res) => {
+  const booking = await bookingService.collectCash(req.user, req.params.id);
+  ok(res, booking, "Cash collected");
+});
+
 module.exports = {
   estimate,
   create,
@@ -80,4 +93,6 @@ module.exports = {
   complete,
   cancel,
   rate,
+  pay,
+  collectCash,
 };

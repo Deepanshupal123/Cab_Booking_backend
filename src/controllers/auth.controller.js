@@ -16,4 +16,9 @@ const me = asyncHandler(async (req, res) => {
   ok(res, req.user);
 });
 
-module.exports = { register, login, me };
+const updatePhone = asyncHandler(async (req, res) => {
+  const user = await authService.updatePhone(req.user._id, req.body.phone);
+  ok(res, user, "Phone saved. OTP will be sent to this number when you book.");
+});
+
+module.exports = { register, login, me, updatePhone };

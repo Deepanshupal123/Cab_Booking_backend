@@ -12,6 +12,7 @@ const authRoutes = require("./routes/auth.routes");
 const driverRoutes = require("./routes/driver.routes");
 const bookingRoutes = require("./routes/booking.routes");
 const adminRoutes = require("./routes/admin.routes");
+const paymentRoutes = require("./routes/payment.routes");
 
 const createApp = () => {
   const app = express();
@@ -23,7 +24,7 @@ const createApp = () => {
 
   const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 200,
+    max: env.isProd ? 300 : 2000,
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, message: "Too many requests, please try again later" },
@@ -31,9 +32,10 @@ const createApp = () => {
 
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 20,
+    max: env.isProd ? 20 : 100,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => req.method === "GET",
     message: { success: false, message: "Too many auth attempts, please try again later" },
   });
 
@@ -52,6 +54,7 @@ const createApp = () => {
   app.use("/api/drivers", driverRoutes);
   app.use("/api/bookings", bookingRoutes);
   app.use("/api/admin", adminRoutes);
+  app.use("/api/payments", paymentRoutes);
 
   app.use(notFound);
   app.use(errorHandler);

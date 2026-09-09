@@ -30,7 +30,9 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem("user", JSON.stringify(next));
         setUser(next);
       })
-      .catch(() => logout());
+      .catch((err) => {
+        if (err.status === 401) logout();
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
