@@ -94,11 +94,23 @@ Connect with `handshake.auth.token` (JWT). Users join `customer_<id>` or `driver
 
 ## Setup
 
+Backend:
+
 ```bash
 npm install
 cp .env.example .env
 npm run dev
 ```
+
+Frontend (separate app in `frontend/`):
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open **http://localhost:3000**. API runs on **http://localhost:5000**.
 
 MongoDB is required (`MONGO_URI`). Optional demo users:
 

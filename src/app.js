@@ -6,6 +6,7 @@ const rateLimit = require("express-rate-limit");
 const mongoose = require("mongoose");
 
 const env = require("./config/env");
+const { corsOrigins } = require("./config/cors");
 const { notFound, errorHandler } = require("./middleware/error");
 const authRoutes = require("./routes/auth.routes");
 const driverRoutes = require("./routes/driver.routes");
@@ -16,7 +17,7 @@ const createApp = () => {
   const app = express();
 
   app.use(helmet());
-  app.use(cors({ origin: env.clientUrl === "*" ? true : env.clientUrl }));
+  app.use(cors({ origin: corsOrigins() }));
   app.use(express.json({ limit: "10kb" }));
   app.use(morgan(env.isProd ? "combined" : "dev"));
 
