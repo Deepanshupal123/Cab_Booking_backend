@@ -10,7 +10,6 @@ REST API for an Uber/Ola-style ride platform. Customers request trips, drivers a
 - Booking lifecycle as an explicit status machine
 - Real-time events (Socket.io rooms per user)
 - Input validation, rate limiting, Helmet, centralized errors
-- Unit tests, ESLint, GitHub Actions CI, Docker Compose
 
 ## Architecture
 
@@ -140,10 +139,7 @@ Coordinates are `[longitude, latitude]`.
 |---|---|
 | `npm run dev` | Nodemon |
 | `npm start` | Production process |
-| `npm test` | Jest |
-| `npm run lint` | ESLint |
 | `npm run seed` | Demo users |
-| `docker compose up --build` | API + Mongo |
 
 ## Fare
 
