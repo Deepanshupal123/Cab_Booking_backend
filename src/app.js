@@ -17,8 +17,18 @@ const paymentRoutes = require("./routes/payment.routes");
 const createApp = () => {
   const app = express();
 
-  app.use(helmet());
-  app.use(cors({ origin: corsOrigins() }));
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+    })
+  );
+  app.use(
+    cors({
+      origin: corsOrigins(),
+      methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+    })
+  );
   app.use(express.json({ limit: "10kb" }));
   app.use(morgan(env.isProd ? "combined" : "dev"));
 
@@ -39,15 +49,19 @@ const createApp = () => {
     message: { success: false, message: "Too many auth attempts, please try again later" },
   });
 
-  app.get("/api/health", (_req, res) => {
+  const health = (_req, res) => {
     const dbState = mongoose.connection.readyState;
     res.json({
       success: true,
-      message: "Server is healthy",
+      message: "Cab booking API is running",
       uptime: process.uptime(),
       database: dbState === 1 ? "connected" : "disconnected",
     });
-  });
+  };
+
+  app.get("/", health);
+  app.get("/health", health);
+  app.get("/api/health", health);
 
   app.use("/api", apiLimiter);
   app.use("/api/auth", authLimiter, authRoutes);

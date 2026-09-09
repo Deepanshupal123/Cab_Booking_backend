@@ -1,15 +1,32 @@
 const env = require("./env");
 
-const corsOrigins = () => {
+const allowedList = () =>
+  String(env.clientUrl || "")
+    .split(",")
+    .map((s) => s.trim().replace(/\/$/, ""))
+    .filter(Boolean)
+    .filter((s) => s !== "*");
+
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
   if (!env.isProd) return true;
 
-  const raw = env.clientUrl;
-  if (!raw || raw === "*") return true;
-  const list = raw
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return list.length === 1 ? list[0] : list;
+  const list = allowedList();
+  if (!list.length) return true;
+  if (list.includes(origin)) return true;
+
+  try {
+    const { hostname } = new URL(origin);
+    if (hostname.endsWith(".vercel.app")) return true;
+  } catch (_err) {
+    return false;
+  }
+  return false;
 };
 
-module.exports = { corsOrigins };
+const corsOrigins = () => (origin, callback) => {
+  if (isAllowedOrigin(origin)) return callback(null, true);
+  return callback(new Error(`CORS blocked for ${origin}`));
+};
+
+module.exports = { corsOrigins, isAllowedOrigin };
