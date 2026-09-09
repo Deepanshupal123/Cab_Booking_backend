@@ -13,10 +13,12 @@ const toAuthPayload = (user) => ({
 });
 
 const register = async (payload) => {
-  const { name, email, phone, password, role, vehicleType, vehicleNumber } = payload;
+  const { name, email, password, role, vehicleType, vehicleNumber } = payload;
   const safeRole = role === ROLES.DRIVER ? ROLES.DRIVER : ROLES.CUSTOMER;
+  const phone = (payload.phone && String(payload.phone).trim()) || `9${Date.now().toString().slice(-9)}`;
+  const emailNorm = String(email).toLowerCase().trim();
 
-  const existing = await User.findOne({ $or: [{ email }, { phone }] });
+  const existing = await User.findOne({ $or: [{ email: emailNorm }, { phone }] });
   if (existing) {
     throw ApiError.conflict("User already exists with this email or phone");
   }
@@ -27,7 +29,7 @@ const register = async (payload) => {
 
   const user = await User.create({
     name,
-    email,
+    email: emailNorm,
     phone,
     password,
     role: safeRole,
@@ -39,7 +41,7 @@ const register = async (payload) => {
 };
 
 const login = async ({ email, password }) => {
-  const user = await User.findOne({ email }).select("+password");
+  const user = await User.findOne({ email: String(email).toLowerCase().trim() }).select("+password");
   if (!user || !(await user.matchPassword(password))) {
     throw ApiError.unauthorized("Invalid email or password");
   }
