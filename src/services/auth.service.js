@@ -13,12 +13,15 @@ const toAuthPayload = (user) => ({
 });
 
 const register = async (payload) => {
-  const { name, email, password, role, vehicleType, vehicleNumber } = payload;
+  const { name, email, password, role, vehicleType, vehicleNumber, phone } = payload;
   const safeRole = role === ROLES.DRIVER ? ROLES.DRIVER : ROLES.CUSTOMER;
-  const phone = (payload.phone && String(payload.phone).trim()) || `9${Date.now().toString().slice(-9)}`;
+  const phoneNorm = String(phone || "").replace(/\D/g, "").slice(-10);
+  if (!/^[6-9][0-9]{9}$/.test(phoneNorm)) {
+    throw ApiError.badRequest("Enter a valid 10-digit Indian mobile number");
+  }
   const emailNorm = String(email).toLowerCase().trim();
 
-  const existing = await User.findOne({ $or: [{ email: emailNorm }, { phone }] });
+  const existing = await User.findOne({ $or: [{ email: emailNorm }, { phone: phoneNorm }] });
   if (existing) {
     throw ApiError.conflict("User already exists with this email or phone");
   }
@@ -30,7 +33,7 @@ const register = async (payload) => {
   const user = await User.create({
     name,
     email: emailNorm,
-    phone,
+    phone: phoneNorm,
     password,
     role: safeRole,
     vehicleType: safeRole === ROLES.DRIVER ? vehicleType : null,
@@ -51,4 +54,15 @@ const login = async ({ email, password }) => {
   return toAuthPayload(user);
 };
 
-module.exports = { register, login };
+const updatePhone = async (userId, phone) => {
+  const phoneNorm = String(phone || "").replace(/\D/g, "").slice(-10);
+  if (!/^[6-9][0-9]{9}$/.test(phoneNorm)) {
+    throw ApiError.badRequest("Enter a valid 10-digit Indian mobile number");
+  }
+  const taken = await User.findOne({ phone: phoneNorm, _id: { $ne: userId } });
+  if (taken) throw ApiError.conflict("This phone is already used");
+  const user = await User.findByIdAndUpdate(userId, { phone: phoneNorm }, { new: true });
+  return user;
+};
+
+module.exports = { register, login, updatePhone };

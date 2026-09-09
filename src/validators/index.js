@@ -5,11 +5,19 @@ const registerRules = [
   body("name").trim().notEmpty().withMessage("Name is required"),
   body("email").isEmail().withMessage("Valid email is required"),
   body("phone")
-    .optional({ checkFalsy: true })
-    .matches(/^[0-9]{10}$/)
-    .withMessage("Phone must be 10 digits"),
+    .matches(/^[6-9][0-9]{9}$/)
+    .withMessage("Enter a valid 10-digit Indian mobile number"),
   body("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters"),
   body("role").optional().isIn(["customer", "driver"]).withMessage("Invalid role"),
+  body("vehicleType")
+    .if(body("role").equals("driver"))
+    .isIn(VEHICLE_TYPES)
+    .withMessage("Vehicle type is required for drivers"),
+  body("vehicleNumber")
+    .if(body("role").equals("driver"))
+    .trim()
+    .notEmpty()
+    .withMessage("Vehicle number is required for drivers"),
 ];
 
 const loginRules = [
@@ -53,6 +61,14 @@ const rateRules = [
   body("comment").optional().isString().isLength({ max: 300 }),
 ];
 
+const payRules = [body("method").isIn(["cash", "upi", "card"]).withMessage("Choose cash, UPI or card")];
+
+const phoneRules = [
+  body("phone")
+    .matches(/^[6-9][0-9]{9}$/)
+    .withMessage("Enter a valid 10-digit Indian mobile number"),
+];
+
 const mongoIdParam = [param("id").isMongoId().withMessage("Invalid id")];
 
 module.exports = {
@@ -66,5 +82,7 @@ module.exports = {
   otpRules,
   cancelRules,
   rateRules,
+  payRules,
+  phoneRules,
   mongoIdParam,
 };

@@ -8,6 +8,7 @@ const {
   otpRules,
   cancelRules,
   rateRules,
+  payRules,
   mongoIdParam,
 } = require("../validators");
 const { ROLES } = require("../config/constants");
@@ -32,5 +33,7 @@ router.patch(
   ctrl.cancel
 );
 router.post("/:id/rate", protect, authorize(ROLES.CUSTOMER), mongoIdParam, rateRules, validate, ctrl.rate);
+router.post("/:id/pay", protect, authorize(ROLES.CUSTOMER), mongoIdParam, payRules, validate, ctrl.pay);
+router.patch("/:id/collect-cash", protect, authorize(ROLES.DRIVER), mongoIdParam, validate, ctrl.collectCash);
 
 module.exports = router;

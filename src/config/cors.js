@@ -1,6 +1,8 @@
 const env = require("./env");
 
 const corsOrigins = () => {
+  if (!env.isProd) return true;
+
   const raw = env.clientUrl;
   if (!raw || raw === "*") return true;
   const list = raw

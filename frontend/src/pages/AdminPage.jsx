@@ -30,7 +30,7 @@ export default function AdminPage() {
   };
 
   return (
-    <Shell title="Admin" subtitle="Platform stats and user control">
+    <Shell theme="admin" title="Admin dashboard" subtitle="Users, drivers online, booking volume">
       {err && <p className="error">{err}</p>}
       {stats && (
         <div className="stats">

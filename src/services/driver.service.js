@@ -12,7 +12,9 @@ const setAvailability = async (driverId, isAvailable) => {
       status: { $in: ACTIVE_TRIP_STATUSES },
     });
     if (activeTrip) {
-      throw ApiError.badRequest("Cannot go online while a trip is in progress");
+      throw ApiError.badRequest(
+        "Finish or cancel your current trip before going online for new rides"
+      );
     }
   }
 

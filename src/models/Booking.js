@@ -74,6 +74,13 @@ const bookingSchema = new mongoose.Schema(
       startedAt: { type: Date, default: null },
       completedAt: { type: Date, default: null },
     },
+    payment: {
+      method: { type: String, enum: ["cash", "upi", "card", null], default: null },
+      status: { type: String, enum: ["unpaid", "paid", "failed", "cod"], default: "unpaid" },
+      amount: { type: Number, default: null },
+      transactionId: { type: String, default: null },
+      paidAt: { type: Date, default: null },
+    },
   },
   { timestamps: true }
 );
